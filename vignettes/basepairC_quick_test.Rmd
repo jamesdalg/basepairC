@@ -1,0 +1,298 @@
+---
+title: "basepairC:  A Powerful Statistical Framework to Reveal Core Structure in Nanoscale Contact Data"
+author: "James Dalgleish"
+date: "2024-10-07"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    highlight: zenburn
+    theme: flatly
+  vignette: >
+    %\VignetteIndexEntry{Quick Test of basepairC}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}  
+---
+
+```{r setup, include=FALSE,warning=F}
+knitr::opts_chunk$set(echo = TRUE,cache=T,fig.width=12, fig.height=8)
+library(magrittr)
+library(basepairC)
+```
+# Introduction
+
+DNA contact experiments have been used at large scale to detect DNA looping events, reveal where DNA forms domains, and detect compartments that help understand the 3D architecture of chromatin. The first experimental technologies included 3C, which detected single point to point interactions, and Hi-C, which gave all-verses-all contact maps across the genome. In 2013, the first kilobase map was developed, yielding profound new insights into the topological structure of the genome, identifying regions of co-association in 3D space (topologically associated domains) and punctate loop signals by modeling the local background and determining the enrichment relative to neighboring regions.1 Additional structures have been described, including architectural stripes.2 The theoretical resolution limit for Hi-C is size of a single restriction site, but MNase-based technologies do not have this limitation. Subsequent development increased the resolution beyond the 1kb range to gene resolution when micro-C was developed using this technology.3 Breakthroughs in experimental technique has now overcome this limitation to provide base-pair resolution maps with Micro-Capture-C, enabling the visualization of yet finer elements, including the binding sites of DNA remodelers and promoter elements.4,5
+
+Current approaches to measuring differences rely on custom internal methods and a rigorous standardized approach has not been formalized. Standard packages for Hi-C contact analysis assume a restriction enzyme is involved,6 use Hi-C specific file formats/outputs, and do not properly account for MNase sequence bias.  Normalizations that work on Hi-C do not work properly on MNase given the scale of the interactions. In particular, corrections based on mappability work well in Hi-C, providing a measure of alignability at a resolution much smaller(24-100bp) the unit of contact measurement(1kb).7 The same cannot be said when the unit of contact measurement is much smaller than the alignment bias and windowed averaging doesn’t provide meaningful information about alignment bias at this size when the standard sized 24-mers are used for this purpose. Thus, a tool that is compatible and designed for MNase-based ultra-resolution contact techniques has not been previously developed and we seek to address this need.
+
+# Overview
+
+The core method to be described allows for processing of high resolution data in minutes, controls for outliers, directly corrects for MNase bias, and corrects for library bias at every step to ensure that the differences are indeed accurate.
+ 
+ Step 1 involves performing total read count normalization via binomial sampling of the counts to make all total read counts similar in order to remove extreme library size differences which are ultimately corrected in the subsequent step. 
+ 
+ Step 2: A filter for the median of the average log count per million at each site pixel in the map, followed by a median ratio normalization performed on pixels with quantifiable variation.8 
+ 
+ Step 3: all of the matrices are aggregated to a resolution just a bit coarser, enough for MNase linear model (which is built on a 6bp sequence model) to converge properly. 
+ 
+ Step 4: a 2D fused graph lasso is performed on a smoothed contact matrix to reduce signal at distal singleton pixels, focusing analysis on the regions of the contact map with the most supporting evidence. 2D segmentation is performed on this smoothed, cleaned matrix to identify a few biologically meaningful blocks, thereby avoiding the loss of power from multiple testing correction penalties incurred by pixel-testing methods (e.g. diffHic9) and testing far fewer regions than distance-based methods that analyze every possible distance from the diagonal.10 
+ 
+ Step 5: For difference testing within each block, a negative binomial hurdle model is performed on each cell, yielding contact frequency ratios when compared with treatment. Region specific biases that are attributable to row and column regions are modeled as part of the procedure, ensuring that other types of bias are considered when designating the significance and estimates of the difference in treatment
+
+
+As mentioned, library bias correction is mitigated at throughout the process. In step 3, the distribution of read counts is normalized using DESeq2’s median ratio method, applied to the regions where differences are nonzero (fig 3).8 Following diffHiC’s framework, a log mean count per million is used to remove low counts using the median of nonzero counts. Read count normalization is also applied after the MNase Step (Step 4), optionally in step 5, and in step 6 by applying an offset of the current read totals after step 5 (which accounts for remaining coverage bias) in the Generalized Additive Model fitting process. 
+
+# Step 1: Read in the data
+
+The input for basepairC is a set of matrices, where each matrix is a replicate. We assign those with a WT in the filename to control and the remaining ones to treatment. Optionally, a cap and threshold to the read counts is possible in this function. SCN can also be performed at this time as well. See the help option for more information.
+```{r read_replicates,eval=F}
+#first, decompress the example files:
+system(paste0("pigz -d ",system.file(package="basepairC","extdata/example_matrices"), "/*.gz")
+              )
+list.files(system.file(package="basepairC","extdata/example_matrices"),pattern="*.txt",recursive=T,full.names = T)->replicate_files
+conditions=ifelse(grepl("WT",replicate_files),"ctrl","trt")
+sample_dt=data.table::data.table(file=replicate_files,condition=conditions) %>% dplyr::arrange(condition)
+sample_dt$condition ->conditions
+suppressMessages(basepairC::read_replicates(replicate_files,conditions,thresh=0,cap=Inf,scn = F,apply_fun=pbmcapply::pbmclapply,cores = 12,python=T)->read_replicates_output_no_scn_raw)
+#zip everything again.
+system(paste0("pigz ",system.file(package="basepairC","extdata/example_matrices"), "/*.txt")
+)
+```
+## Step 1a: select similar samples 
+
+This is an optional step, but there were problems with outliers that were mitigated by reducing the distribution imbalance from the beginning.
+Here, we take the read counts for each sample and rank them, then select the top 3 of the low read count condition (control) and the bottom 3 of the high read count condition (treatment, even though this is a knockdown experiment).
+```{r select_similar_samples,eval=F}
+read_replicates_output_no_scn_raw$sample_mat %>% as.matrix() %>% Rfast::colsums() ->rs_no_scn_raw
+lapply(1:length(unique(conditions)),function(i) {which(conditions==unique(conditions)[i])[which(rank(rs_no_scn_raw[which(conditions==unique(conditions)[i])])>3)]}) %>% setNames(unique(conditions)) ->top_samples
+lapply(1:length(unique(conditions)),function(i) {which(conditions==unique(conditions)[i])[which(rank(rs_no_scn_raw[which(conditions==unique(conditions)[i])])<=3)]}) %>% setNames(unique(conditions)) ->bottom_samples
+
+c(bottom_samples$trt,top_samples$ctrl)->selected_samples
+read_replicates_output_no_scn_selected=read_replicates_output_no_scn_raw
+read_replicates_output_no_scn_selected$sample_mat[,..selected_samples]->read_replicates_output_no_scn_selected$sample_mat
+
+```
+# Step 2: force equal read counts.
+Now we perform multinomial sampling to make the read counts equal to the lowest read count replicate of the selected samples. We also reset the conditions vector for the smaller subset.
+```{r equalize_reads,eval=F}
+downsample_rr(read_replicates_output_no_scn_selected)->read_replicates_output_no_scn_ds
+read_replicates_output_no_scn_raw$conditions[selected_samples]->read_replicates_output_no_scn_ds$conditions
+#notice how all of the samples have exactly the same read counts at this point.
+
+```
+# Step 3: normalize and filter the read counts.
+
+We will use the median ratio method for normalization of library sizes on those pixels with differences between conditions (diff filter). Two other types of filters are available (avgLogCPM and a method that retains pixels whose sum across conditions is greater than the mean of all pixel sums).
+
+```{r filter,eval=F}
+basepairC::normalizeFilterReadCounts(sample_mat = read_replicates_output_no_scn_ds$sample_mat,conditions = read_replicates_output_no_scn_ds$conditions,loc1 = read_replicates_output_no_scn_ds$loc1,loc2 = read_replicates_output_no_scn_ds$loc2,nrow_output = read_replicates_output_no_scn_ds$rep_dim[1],ncol_output = read_replicates_output_no_scn_ds$rep_dim[2],output_type = "corrected_counts",filter = T,underscored_positions_col = read_replicates_output_no_scn_ds$underscored_positions_col,underscored_positions_row = read_replicates_output_no_scn_ds$underscored_positions_row,norm_factor_type = "DESeq2",filter_type = "diff")->normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds
+```
+
+```{r save_and_load_normalized_matrices,eval=F,echo=F}
+#saveRDS(normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds,file = "normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds.rds")
+#normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds=readRDS(file = "normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds.rds")
+```
+
+## Step 3a: Extract the matrices from the prior step and read in the bias matrix.
+
+First, we will read in the bias matrix. For more information on how to create one, please see the help topic for the function create_bias_matrix(). The methods are flexible to accommodate different genomes and locations. Mappability, GC bias, and sequence bias (MNase) can be modeled at present.
+```{r get_matrices,eval=F}
+#get bias matrix
+readRDS(system.file(package="basepairC","extdata","mnase_bias_6bp.rds"))[1:6000,1:6000]->mnase_bias_matrix
+#get control matrix
+normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds$sum_mat_list$ctrl[1:6000,1:6000] ->ctrl_mat_no_scn_deseq2_diff_ds
+#get treatment matrix
+normalizeFilterReadCounts_output_counts_no_scn_deseq2_diff_ds$sum_mat_list$trt[1:6000,1:6000] ->trt_mat_no_scn_deseq2_diff_ds
+```
+## Step 3.z (optional): creating a bias matrix for an alternative genome
+```{r alternative_bias_matrix,eval=F,echo=T}
+
+mm39_bias_mat=create_bias_matrix(
+  chr = "chr15",
+  start = 61982445,
+  end = 61988445,
+  genome = BSgenome.Mmusculus.UCSC.mm39::BSgenome.Mmusculus.UCSC.mm39,
+  map_fn = system.file(package = "basepairC", "extdata","k24.merged.GRCm39_umap.MultiReadMappability.bedGraph.gz"),
+  nrow = 6000,
+  ncol = 6000
+)
+```
+
+# Step 4: Downsample to 10bp and perform MNase correction.
+
+```{r save_and_load_ds_mats,eval=T,echo=F}
+#saveRDS(ctrl_mat_no_scn_deseq2_diff_ds,file = "ctrl_mat_no_scn_deseq2_diff_ds.rds")
+#saveRDS(trt_mat_no_scn_deseq2_diff_ds,file = "trt_mat_no_scn_deseq2_diff_ds.rds")
+ctrl_mat_no_scn_deseq2_diff_ds=readRDS(file = system.file(package="basepairC", "extdata/ctrl_mat_no_scn_deseq2_diff_ds.rds"))
+trt_mat_no_scn_deseq2_diff_ds=readRDS(file = system.file(package="basepairC", "extdata/trt_mat_no_scn_deseq2_diff_ds.rds"))
+```
+## Step 4a: Downsample all matrices from 1bp to 10bp.
+
+We will perform a linear MNase correction on the matrices. All of the matrices will be downsampled (by summing pixels) to 10bp, so that no data is lost in the process. The smoothing window is optional.  We will keep it at 1bp for this example (no smoothing).
+
+
+```{r create_mat_set,eval=F}
+ds_smooth_mat_set(ctrl_matrix=ctrl_mat_no_scn_deseq2_diff_ds,trt_matrix=trt_mat_no_scn_deseq2_diff_ds,mnase_bias_matrix=mnase_bias_matrix,ds_factor=10,smooth_window=1,filter_action = "max")->ds_smoothed_mat_set
+```
+
+```{r save_and_load_mnase_mat_set,eval=T,echo=F}
+#saveRDS(ds_smoothed_mat_set,file = paste0(system.file(package="basepairC","extdata"),"/", "ds_smoothed_mat_set.rds") )
+ds_smoothed_mat_set=readRDS(file = paste0(system.file(package="basepairC","extdata"),"/", "ds_smoothed_mat_set.rds"))
+```
+
+## Step 4b: perform the linear MNase correction
+Now we will perform the correction. This is done by merging all three matrices together, compiliing the ctrl and treatment counts as the outcome (value) with a binary variable for treatment. The mnase becomes another column, and the model is constructed with both treatment and mnase using a log-linked Negative Binomial GLM. Both the contribution of MNase and treatment is calculated and listed below.
+The reads are then filtered by signal to noise ratio (SNR), using the read counts as the signal and the estimates attributable to bias in the denominator.
+
+$$
+\begin{gathered}
+\operatorname{Var}(y)=\mu+\frac{\mu^2}{\theta}, \mu=E(y)(1) \\
+\log (Y)=\beta_0+\beta_{\mathrm{MNase}^{\circ}} \cdot{ } \mathrm{MNase}{ }+\varepsilon_{i j}(2) 
+\end{gathered}
+$$
+
+
+$$
+\begin{gathered}
+t_{s_k}=\sum_{l=1}^n c_l(3) \\
+T=\left\{t_{s_1}, t_{s_2}, t_{s_3}, \ldots t_{s_n}\right\} (4) \\
+F_l=\frac{\min (T)}{t_{s_k}} \cdot \text { (5) } \\
+S_r=\frac{c_{i j}}{\beta_0+\beta_{\text {MNase }} * \text { MNase }} (6)
+\end{gathered}
+$$
+
+```{r mnase_linear_correction,eval=F,message=F}
+mnase_correct_matrix_pair(ctrl_mat_ds=ds_smoothed_mat_set$ctrl,trt_mat_ds=ds_smoothed_mat_set$trt,mnase_bias_matrix_sm_ds=ds_smoothed_mat_set$mnase_bias,snr_filter = T,two_stage=F,single_model_cores=1) ->mnase_corrected_mats
+```
+
+
+
+You'll notice that the MNase corrections are subtle, but the coefficient distribution is large enough to remove effects. There the regions affected still have enough signal to be detected. 
+```{r save_and_reload_mnase_corrected_mats,eval=T,echo=F,message=F}
+
+#saveRDS(mnase_corrected_mats,file = paste0(system.file(package="basepairC","extdata"),"/", "mnase_corrected_mats.rds"))
+mnase_corrected_mats=readRDS(file =paste0(system.file(package="basepairC","extdata"),"/", "mnase_corrected_mats.rds"))
+```
+
+
+```{r mnase_linear_correction_results,eval=T,message=F}
+mnase_corrected_mats$mnase_glm %>% broom::tidy()  %>% knitr::kable() 
+tibble::tibble(`dispersion, θ`=mnase_corrected_mats$mnase_glm$theta,`dispersion parameter standard error SE(θ)`=mnase_corrected_mats$mnase_glm$SE.theta) %>% knitr::kable()
+```
+
+```{r plotting_before_and_after,eval=T,message=F,echo=F,fig.width=8,fig.height=8}
+#Optional plots:
+suppressMessages({
+ctrl_mat_no_scn_deseq2_diff_ds %>% basepairC:::downsample_with_names(factor=10)->ctrl_mat_no_scn_deseq2_diff_ds_10bp
+trt_mat_no_scn_deseq2_diff_ds %>% basepairC:::downsample_with_names(factor=10)->trt_mat_no_scn_deseq2_diff_ds_10bp
+ctrl_mat_no_scn_deseq2_diff_ds_10bp  %>% quickheat(legend_name = "normalized_count_differences",title="WT, 6bp MNase uncorrected")
+mnase_corrected_mats$ctrl %>% quickheat(legend_name = "normalized_count_differences",title="WT, 6bp MNase corrected")
+trt_mat_no_scn_deseq2_diff_ds_10bp %>% quickheat(legend_name = "normalized_count_differences",title="dTAG M14, 6bp MNase corrected")
+mnase_corrected_mats$trt %>% quickheat(legend_name = "normalized_count_differences",title="dTAG M14, uncorrected")
+(ctrl_mat_no_scn_deseq2_diff_ds_10bp-mnase_corrected_mats$ctrl) %>% quickheat(legend_name = "normalized_count_differences",title="WT-MNase corrected WT")
+(trt_mat_no_scn_deseq2_diff_ds_10bp-mnase_corrected_mats$trt) %>% quickheat(legend_name = "normalized_count_differences",title="WT-MNase corrected dTAG M14")
+})
+```
+
+# Step 5: Segmentation
+
+We will use recursive binary segmentation with a fused graph lasso to find the proper segments and join all of the points into a table for modeling. Other options are available (see help("get2Dsegments") for more information).
+
+```{r segmentation,eval=F,message=F,warning=F}
+suppressMessages({create_long_ctrl_trt_df(ctl_filename = mnase_corrected_mats$ctrl,trt_filename = mnase_corrected_mats$trt,bin_size = 10,plot=T,
+                                     start_row = 61982445,make_symmetric = F,
+  end_row = 61988445,
+  start_col = 61982445,
+  end_col = 61988445,
+  dsfactor = 1,
+  mat_start_row = 1,
+  mat_end_row = nrow(mnase_corrected_mats$ctrl),
+  mat_start_col = 1,
+  cap=Inf,
+  thresh=-Inf,
+  lambda=2.5,
+  mat_end_col = ncol(mnase_corrected_mats$ctrl),total_read_correction = F,seg_algorithm = "jointSeg",ctrl_lasso = F,trt_lasso = F,lasso_ratio_seg_max = 10,smooth=F,comp_type = "absdiff")->long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected})
+```
+Now, let's merge the mnase data with the segmented data so we can model the nonlinear mnase to outcome relationships (to be extra conservative).
+
+```{r merging_on_mnase,eval=F}
+ds_smoothed_mat_set$mnase_bias %>% reshape2::melt() ->mnase_bias_matrix_melt
+mnase_bias_matrix_melt %>% as.data.frame() %>% dplyr::inner_join(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected ,by=c("Var1"="loc1","Var2"="loc2"),suffix = c("_mnase",""),copy=T) %>%
+  dplyr::rename(loc1=Var1,loc2=Var2,mnase=value_mnase) ->long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase
+```
+```{r save_and_reload,eval=T,echo=F}
+paste0(system.file(package="basepairC","extdata"),"/", "long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase.csv.gz")
+#data.table::fwrite(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase,file=paste0(system.file(package="basepairC","extdata"),"/", "long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase.csv.gz"),nThread=parallel::detectCores())
+long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase=data.table::fread(file=paste0(system.file(package="basepairC","extdata"),"/", "long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase.csv.gz"),nThread=parallel::detectCores())
+```
+
+# Step 6: Statistical Testing
+
+Now, let's fit all 66 models. When doing your own modeling, start simple (e.g. "value ~ treatment") and see what will properly converge.
+There is a 1D Lasso option here, but with the mnase correction, this is not needed. The idea with this is to remove small difference segments that are not biologically relevant (usually out in the distal portions of the plot, far from the midline).
+The models are use the counts as the outcome and the treatment and mnase as predictors. Additional smooth terms for x and y (start1 and start2) can be added to reduce the effects of large row and column bins.
+```{r models,eval=F}
+binsize=10
+
+
+zinb_parallel_compare_gam(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase,
+                          thresh=max(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("ctrl","trt")) %>% dplyr::pull(value) %>% nonzero() %>% quantile(.5),binsize),
+                          cap=long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("ctrl","trt")) %>% dplyr::pull(value) %>% nonzero() %>% quantile(.99), 
+                          offset=T,
+                          mc.cores=parallel::detectCores(),
+                          mnase=F,
+                          extra_formula_terms="  s(mnase,bs='ad') +te(start1,start2)",  #,
+                          total_reads_ctrl=long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("ctrl")) %>% dplyr::pull(value) %>% sum(),
+                          total_reads_trt=long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("trt")) %>% dplyr::pull(value) %>% sum(),
+                          fam=glmmTMB::nbinom2(link="log"),
+                          mnase_mat=mnase_bias_matrix,
+                          link="identity",
+                          single_model_cores=1,
+                          lasso1d_filter = F,
+                          ridge=F)->output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam
+```
+```{r save_and_reload2,eval=T,echo=F}
+#saveRDS(output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam,file = "output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam.rds")
+output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam=readRDS(system.file(package="basepairC",file = "extdata/output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam.rds"))
+```
+## Step 6b: Plot Results
+
+Below are both the estimates and p-values for the treatment effect, using an offset term to adjust for remaining total read imbalances.
+The squares in the plot, from left to right represent a CTCF site in the promoter (before the TSS), the TSS itself, and another CTCF site on the other side.
+```{r save_and_load_estimate_pvalue_plots,eval=T,echo=F}
+  #saveRDS(estimate_plot,file = "estimate_plot.rds")
+  #saveRDS(p_val_plot,file = "p_val_plot.rds")
+  estimate_plot=readRDS(file = system.file("extdata","estimate_plot.rds",package="basepairC"))
+  p_val_plot=readRDS(file = system.file("extdata","p_val_plot.rds",package="basepairC"))
+
+```
+
+```{r ggplot_load,eval=T}
+library(ggplot2)
+```
+
+
+```{r models_plots2,eval=F}
+output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam$output_summary %>%  dplyr::mutate(padj=p.adjust(p.value,method="bonferroni")) %>%  mirror_output_summary() %>% dplyr::filter(model=="nb",term=="treatmenttrt") %>% dplyr::mutate(rate_ratio=as.numeric(ifelse(padj<0.05,(estimate),1 ) )) %>% dplyr::arrange((rate_ratio))    %>%
+      dplyr::inner_join(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("ctrl","trt")),by=c("cell_id"="trtlr_cell_id"),copy=T)  %>% dplyr::rename(start1=start1.y,start2=start2.y) %>%  
+    ggplot(aes(x=as.numeric(start1),y=as.numeric(start2),fill=estimate)) + geom_raster()  + scale_fill_viridis_c(direction=-1,option="magma",name="normalized count difference")+ theme_minimal() + labs(title="Zero-Truncated Negative Binomial GLM estimates (identity link), by Cell ID",x="Start1",y="Start2") + coord_fixed(ratio = 1) +   theme(
+    legend.position = "bottom"    
+  ) + theme(
+  legend.text = element_text(angle = 90)
+)->estimate_plot
+  output_summary_long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_gam$output_summary %>% dplyr::mutate(p.value=Rmpfr::pnorm(abs(statistic),lower.tail = F)) %>%  dplyr::mutate(padj=p.adjust(p.value,method="bonferroni")) %>%  mirror_output_summary() %>% dplyr::filter(model=="nb",term=="treatmenttrt") %>% dplyr::mutate(rate_ratio=as.numeric(ifelse(padj<0.05,exp(estimate),NA ) )) %>% dplyr::arrange((rate_ratio))  %>%
+      dplyr::inner_join(long_ctrl_trt_df_deseq2_diff_ds_mnase_corrected_mnase %>% dplyr::filter(treatment %in% c("ctrl","trt")),by=c("cell_id"="trtlr_cell_id"),copy=T)  %>% dplyr::rename(start1=start1.y,start2=start2.y) %>%  
+    ggplot(aes(x=as.numeric(start1),y=as.numeric(start2),fill=padj)) + geom_raster() + scale_fill_viridis_c(option="magma",name="Bonferroni Adjusted P-Value",trans = "log",direction=-1)+ theme_minimal() + coord_fixed(ratio = 1) +   theme(
+    legend.position = "bottom"    
+  ) + theme(
+  legend.text = element_text(angle = 90,vjust=.0001),plot.margin=unit(c(3,1,1,1.5),"cm")
+) + labs(title="Zero-Truncated Negative Binomial GLM p-values, by Cell ID",x="Start1",y="Start2") ->p_val_plot
+```
+
+
+```{r models_plots,eval=T}
+estimate_plot
+p_val_plot
+```
+
