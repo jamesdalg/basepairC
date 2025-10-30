@@ -1,8 +1,8 @@
 Package: basepairC
 Type: Package
 Title: Analysis of Basepair resolution DNA-DNA contact data
-Version: 2.0.6.5
-Date: 2025-10-14
+Version: 2.0.6.6
+Date: 2025-10-30
 Author: James Dalgleish [aut, cre], Hangpeng Li[aut,ctb], James Davies [aut,sad]
 Maintainer: James Dalgleish <james.dalgleish@keble.ox.ac.uk>
 Description: Performs data cleaning, segmentation, modeling,

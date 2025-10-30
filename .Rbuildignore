@@ -1,0 +1,13 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^doc$
+^Meta$
+^\.Rproj\.user$
+^dev
+^data/mm10/k24\.umap\.bedgraph(\.gz)?$
+\\.RDataFS$
+\\.RData$
+^vignettes/contact_matrices$
+^vignettes/basepairC_quick_test_cache
+^vignettes/basepairC_quick_test_files
+^data/.*parquet.*
