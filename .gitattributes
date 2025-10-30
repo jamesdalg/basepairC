@@ -19,7 +19,6 @@ data/mnase_bias_matrix_myc_6kb_1bp_res.rds filter=lfs diff=lfs merge=lfs -text
 data/mnase_model_6bp.rds filter=lfs diff=lfs merge=lfs -text
 data/myc_mm10_mnase_bias_matrix_mnase_mm10_6mer_mes_sobias.rda filter=lfs diff=lfs merge=lfs -text
 data/myc_mm10_mnase_bias_matrix_mnase_mm10_8mer_mes_sobias.rda filter=lfs diff=lfs merge=lfs -text
-*.md filter=lfs diff=lfs merge=lfs -text
 *.DS_Store filter=lfs diff=lfs merge=lfs -text
 *.RDataFS filter=lfs diff=lfs merge=lfs -text
 *.gz filter=lfs diff=lfs merge=lfs -text
