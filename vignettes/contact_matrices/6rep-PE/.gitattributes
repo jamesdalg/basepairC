@@ -1,0 +1,12 @@
+MYC3_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC4_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC5_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC5_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC6_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC6_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC1_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC1_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC2_Sox2dTAG-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC2_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC3_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
+MYC4_WT-P_E-5.txt filter=lfs diff=lfs merge=lfs -text
