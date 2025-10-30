@@ -10,7 +10,7 @@ Description: Performs data cleaning, segmentation, modeling,
 Depends: R (>= 4.1.0)
 Imports: CNVScope, dtplyr, glmmTMB, data.table, Matrix,inflection,e1071
 Suggests: ComplexHeatmap,magrittr,RhpcBLASctl,Rmpfr,scattermore,smoothie,edgeR,NMF,knitr,patchwork,glmnet,EBImage,CTCF,fitdistrplus,patchwork,pbapply,pbmcapply,AnnotationHub,BSgenome.Mmusculus.UCSC.mm10,BSgenome.Mmusculus.UCSC.mm39,csaw,ggrepel,reticulate, arrow,HiCcompare,Rfast,brms,DESeq2,broom.mixed
-License: GPLv3
+License: AGPL (>= 3)
 Encoding: UTF-8
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
