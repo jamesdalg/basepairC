@@ -1,3 +1,19 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d19d69c4878da366f04e26b4b3494c72e74d5eaab6e4979f1f9c04548fcbf657
-size 913
+Package: basepairC
+Type: Package
+Title: Analysis of Basepair resolution DNA-DNA contact data
+Version: 2.0.6.5
+Date: 2025-10-14
+Author: James Dalgleish [aut, cre], Hangpeng Li[aut,ctb], James Davies [aut,sad]
+Maintainer: James Dalgleish <james.dalgleish@keble.ox.ac.uk>
+Description: Performs data cleaning, segmentation, modeling,
+    and visualization of basepairC data.
+Depends: R (>= 4.1.0)
+Imports: CNVScope, dtplyr, glmmTMB, data.table, Matrix,inflection,e1071
+Suggests: ComplexHeatmap,magrittr,RhpcBLASctl,Rmpfr,scattermore,smoothie,edgeR,NMF,knitr,patchwork,glmnet,EBImage,CTCF,fitdistrplus,patchwork,pbapply,pbmcapply,AnnotationHub,BSgenome.Mmusculus.UCSC.mm10,BSgenome.Mmusculus.UCSC.mm39,csaw,ggrepel,reticulate, arrow,HiCcompare,Rfast,brms,DESeq2,broom.mixed
+License: GPLv3
+Encoding: UTF-8
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3
+NeedsCompilation: no
+Packaged: 2024-02-19 09:36:13 UTC; jd
+biocViews: 
