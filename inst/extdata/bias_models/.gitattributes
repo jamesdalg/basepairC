@@ -1,0 +1,5 @@
+MNase_MCF7_hg38_kmer_map_6mer.txt filter=lfs diff=lfs merge=lfs -text
+MNase_MCF7_hg38_kmer_map_8mer.txt filter=lfs diff=lfs merge=lfs -text
+mnase_mm10_kmer_map_6mer.txt filter=lfs diff=lfs merge=lfs -text
+mnase_mm10_kmer_map_8mer.txt filter=lfs diff=lfs merge=lfs -text
+*.gz filter=lfs diff=lfs merge=lfs -text
