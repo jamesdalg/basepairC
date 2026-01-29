@@ -1,9 +1,9 @@
 
-basepairC.core
+basepairC
 =================
 James Dalgleish
 
-July 4, 2025
+Jan 29, 2026
 
 -   [Introduction](#introduction)
 -   [Installation](#installation)
