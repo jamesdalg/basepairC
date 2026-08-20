@@ -1,9 +1,9 @@
-
+[![DOI](https://zenodo.org/badge/1086502238.svg)](https://doi.org/10.5281/zenodo.22028776)
 basepairC
 =================
 James Dalgleish
 
-Jan 29, 2026
+Aug 20, 2026
 
 -   [Introduction](#introduction)
 -   [Installation](#installation)
@@ -34,7 +34,7 @@ Tutorial
 
 Before beginning the tutorial for basepairC, be sure to make the core matrices in the basepairC tutorial.
 You can view the tutorial here:
-[A quick test of baseapirC](https://jamesdalg.github.io/basepairC/vignettes/basepairC_quick_test.html)
+[A quick test of basepairC](https://jamesdalg.github.io/basepairC/vignettes/basepairC_quick_test.html)
 
 
 You can also view the vignette in RStudio by running:
