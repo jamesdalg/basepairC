@@ -4,3 +4,7 @@
 .Ruserdata
 /doc/
 /Meta/
+
+# knitr/rmarkdown vignette build artifacts (large, regenerated on build)
+vignettes/*_cache/
+vignettes/*_files/
