@@ -1,6 +1,8 @@
 
 basepairC
 =================
+
+[![DOI](https://zenodo.org/badge/1086502238.svg)](https://doi.org/10.5281/zenodo.22028776)
 James Dalgleish
 
 Jan 29, 2026
