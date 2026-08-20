@@ -18,7 +18,6 @@ Introduction
 basepairC is a package analyzing the highest resolution contact data available: Micro-Capture-C at ~1-6bp basepair resolution.
 This is several orders of magnitude smaller than even microC, and enables the 3D characterization finer than even a transcription factor binding site in a promoter.
 basepairC is a package for importing, correcting, and preprocessing these data to create 2D data structures ready for analysis, performing MNase bias correction, segmentation, and region-based statistical testing.
-The next version of the package suite, basepairC.core, is currently in development and will be released separately.
 
 Installation
 =================
