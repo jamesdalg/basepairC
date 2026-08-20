@@ -190,7 +190,7 @@ read_replicates <- function(replicate_files, conditions, start_row = 61982445, e
   if(equalize_sample_coverage){
     
     #sample_mat %>% data.table::as.data.table() %>% equalize_sample_coverage(n_samples = n_resamples,max_cores=cores) -> sample_mat
-    rebalance_observed(sample_mat,filter_type = "sorted") -> sample_mat_rebalanced
+    rebalance_observed(sample_mat,conditions,filter_type = "sorted") -> sample_mat_rebalanced
     output_sample_mat=sample_mat_rebalanced
   } else {
     output_sample_mat=sample_mat

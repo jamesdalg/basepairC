@@ -4,7 +4,8 @@
 #' It separates numeric and non-numeric columns, calculates total counts and non-zero counts, and 
 #' rebalances the observed samples based on the specified filter type ("sorted" or "ranked").
 #'
-#' @param sample_mat A matrix or data frame containing the samples to be rebalanced. Numeric columns will be processed, while non-numeric columns will be kept intact.
+#' @param sample_mat A matrix or data frame containing the samples to be rebalanced. Numeric columns will be processed, while non-numeric columns will be kept intact. This assumes the matrix set is unraveled into columns, one per sample.
+#' @param conditions A vector giving the experimental condition for each numeric (sample) column of sample_mat, in the same column order. The proportion of samples observing each locus is computed within condition group rather than across all samples, so this must be the same length as the number of numeric columns.
 #' @param filter_type A character string indicating the type of filtering to be applied. 
 #' Can be either "sorted" (default, meaning to sort by the proportion of observed samples at each location followed by counts)
 #'  or "ranked" (which takes the product of the two aforementioned factors and ranks them). 
@@ -21,11 +22,12 @@
 #' @examples
 #' \dontrun{
 #' sample_data <- data.table::data.table(A = c(10, 0, 5), B = c(3, 5, 0), C = c("Type1", "Type2", "Type1"))
-#' rebalanced_data <- rebalance_observed(sample_data, filter_type = "sorted")
+#' conditions <- c("Condition1", "Condition2")
+#' rebalanced_data <- rebalance_observed(sample_data, conditions, filter_type = "sorted")
 #' }
 #'
 #' @export
-rebalance_observed=function(sample_mat,filter_type="sorted"){
+rebalance_observed=function(sample_mat,conditions,filter_type="sorted"){
   message_parallel("Equalizing sample coverage...")
   message_parallel("identifying numeric columns")
   sapply(data.table::as.data.table(sample_mat),is.numeric)->numeric_columns
