@@ -21,10 +21,10 @@
 #' @param ridge Apply ridge penalty to treatment? Default FALSE (takes a bit longer).
 #' @param lasso1d_filter Apply 1D LASSO filter to covariates? Default TRUE.
 #' @param restricted_mnase Apply MNase bias correction only to the cell of interest? Default TRUE.
+#'  Changing this value to false models the entire matrix for MNase, which can be slow and memory-intensive.
 #' @param base_formula The base formula for the model.
 #' @param robust_cov Use robust covariance matrix for p-values? Default FALSE.
 #' @param plot_direction Direction for plotting. 1 for treatment > control, -1 for control > treatment.
-#'  Changing this value to false models the entire matrix for MNase, which can be slow and memory-intensive.
 #' @return A data frame with the treatment effect comparison results.
 #' @importFrom magrittr `%>%`
 #' @examples

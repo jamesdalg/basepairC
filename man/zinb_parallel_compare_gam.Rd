@@ -28,7 +28,8 @@ zinb_parallel_compare_gam(
   lasso1d_filter = F,
   restricted_mnase = T,
   base_formula = "value ~   treatment",
-  robust_cov = F
+  robust_cov = F,
+  plot_direction = 1
 )
 }
 \arguments{
@@ -74,6 +75,12 @@ zinb_parallel_compare_gam(
 
 \item{restricted_mnase}{Apply MNase bias correction only to the cell of interest? Default TRUE.
 Changing this value to false models the entire matrix for MNase, which can be slow and memory-intensive.}
+
+\item{base_formula}{The base formula for the model.}
+
+\item{robust_cov}{Use robust covariance matrix for p-values? Default FALSE.}
+
+\item{plot_direction}{Direction for plotting. 1 for treatment > control, -1 for control > treatment.}
 }
 \value{
 A data frame with the treatment effect comparison results.
