@@ -11,9 +11,9 @@ create_dt_with_map_and_gc(
   genome_val,
   map_fn = "/code/R/basepairC/data/mm10/k24.umap.bedgraph",
   mnase_model = system.file(package = "basepairC",
-    "data/bias_models/mnase_mm10_kmer_map_6mer.txt"),
+    "extdata/bias_models/mnase_mm10_kmer_map_6mer.txt"),
   mnase_model_8bp = system.file(package = "basepairC",
-    "data/bias_models/mnase_mm10_kmer_map_8mer.txt"),
+    "extdata/bias_models/mnase_mm10_kmer_map_8mer.txt"),
   bsgenome_obj = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10
 )
 }

@@ -10,7 +10,7 @@ mnase_bias_6bp(
   genome = BSgenome.Mmusculus.UCSC.mm10::BSgenome.Mmusculus.UCSC.mm10,
   window_size = 6,
   n_cores = parallel::detectCores()/2,
-  mnase_model = system.file(package = "basepairC", "data/mnase_model_6bp.rds")
+  mnase_model = system.file(package = "basepairC", "extdata/mnase_model_6bp.rds")
 )
 }
 \arguments{

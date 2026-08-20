@@ -46,7 +46,9 @@ create_long_ctrl_trt_df(
   parallel_message = T,
   comp_type = "ratio",
   smooth = T,
-  messages = F
+  messages = F,
+  manual_lr_breakpoints = "",
+  ...
 )
 }
 \arguments{

@@ -13,7 +13,7 @@ Suggests: ComplexHeatmap,magrittr,RhpcBLASctl,Rmpfr,scattermore,smoothie,edgeR,N
 License: AGPL (>= 3)
 Encoding: UTF-8
 VignetteBuilder: knitr
-RoxygenNote: 7.3.3
 NeedsCompilation: no
 Packaged: 2024-02-19 09:36:13 UTC; jd
 biocViews: 
+Config/roxygen2/version: 8.0.0
