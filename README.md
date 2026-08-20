@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/1086502238.svg)](https://doi.org/10.5281/zenodo.22028776)
+<a href="https://doi.org/10.5281/zenodo.22028776"><img src="https://zenodo.org/badge/1086502238.svg" alt="DOI"></a>
 basepairC
 =================
 James Dalgleish
