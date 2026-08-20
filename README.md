@@ -34,7 +34,7 @@ Tutorial
 
 Before beginning the tutorial for basepairC, be sure to make the core matrices in the basepairC tutorial.
 You can view the tutorial here:
-[A quick test of baseapirC](https://jamesdalg.github.io/basepairC/vignettes/basepairC_quick_test.html)
+[A quick test of basepairC](https://jamesdalg.github.io/basepairC/vignettes/basepairC_quick_test.html)
 
 
 You can also view the vignette in RStudio by running:
@@ -42,4 +42,3 @@ You can also view the vignette in RStudio by running:
 ```r
 browseVignettes("basepairC")
 ```
-
